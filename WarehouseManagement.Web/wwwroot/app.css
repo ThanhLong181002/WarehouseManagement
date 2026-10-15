@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@theme {
+    /* Định nghĩa thêm kích thước chữ siêu nhỏ cho các Badge danh mục */
+    --text-xxs: 0.65rem;
+    /* Cấu hình các hiệu ứng chuyển động mượt mà cho giao diện (Animation) */
+    --animate-fade-in: fade-in 0.25s ease-out forwards;
+    --animate-scale-in: scale-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    --animate-shake: shake 0.4s ease-in-out;
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes scale-in {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    @keyframes shake {
+        0%, 100% {
+            transform: translateX(0);
+        }
+
+        25% {
+            transform: translateX(-4px);
+        }
+
+        75% {
+            transform: translateX(4px);
+        }
+    }
+}
+
+/* ================= CUSTOM GLOBAL STYLES ================= */
+
+/* Thiết lập mặc định hệ thống chữ và khử răng cưa chữ trên nền tối */
+html, body {
+    background-color: var(--color-slate-950);
+    color: var(--color-slate-300);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Tối ưu hóa hiển thị thanh cuộn mờ mịn (Scrollbar) cho các bảng kê chi tiết */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-slate-800);
+    border-radius: 9999px;
+}
+
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: var(--color-slate-700);
+    }
+
+/* Khử định dạng mũi tên tăng giảm mặc định khó chịu của ô nhập số (Input Number) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Định dạng kiểu hiển thị cho các ô thông báo lỗi mặc định từ ValidationMessage Blazor */
+.validation-message {
+    color: var(--color-rose-400);
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: block;
+    margin-top: 0.25rem;
+}

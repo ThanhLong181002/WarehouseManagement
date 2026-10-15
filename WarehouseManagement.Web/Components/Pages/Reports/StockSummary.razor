@@ -1,0 +1,212 @@
+﻿@page "/reports/stock-summary"
+@rendermode InteractiveServer
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+@inject NavigationManager NavigationManager
+
+<div class="space-y-6 animate-fade-in">
+    <!-- Tiêu đề trang -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Báo cáo Tổng hợp Tồn kho</h1>
+        <p class="text-sm text-slate-400 mt-1">Phân tích biến động Xuất - Nhập - Tồn của vật tư theo kho và khoảng thời gian lựa chọn.</p>
+    </div>
+
+    <!-- Thanh bộ lọc báo cáo (Report Filter Board) -->
+    <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+        <!-- Lọc theo Kho -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Kho hàng</label>
+            <select @bind="_selectedWarehouseId" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-300 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer">
+                <option value="">-- Tất cả các kho --</option>
+                @foreach (var wh in _warehouses)
+                {
+                    <option value="@wh.WarehouseId">@wh.WarehouseName (@wh.WarehouseCode)</option>
+                }
+            </select>
+        </div>
+
+        <!-- Từ ngày -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Từ ngày</label>
+            <input type="date" @bind="_fromDate" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer" />
+        </div>
+
+        <!-- Đến ngày -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Đến ngày</label>
+            <input type="date" @bind="_toDate" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer" />
+        </div>
+
+                <!-- Nhóm nút chức năng (Đã bổ sung liên kết @onclick và trạng thái xoay loading) -->
+        <div class="flex gap-2">
+            <!-- 1. Bổ sung sự kiện @onclick="ExecuteQuery" cho nút Xem báo cáo -->
+            <button @onclick="ExecuteQuery" disabled="@_isLoading"
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs py-2.5 px-4 rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5">
+                @if (_isLoading)
+                {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Đang tổng hợp...</span>
+                }
+                else
+                {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <span>Xem báo cáo</span>
+                }
+            </button>
+            
+            <!-- 2. Bổ sung sự kiện @onclick="ExportToExcel" cho nút Xuất Excel màu xanh lá -->
+            <button type="button" @onclick="ExportToExcel" disabled="@(!_reportRows.Any() || _isLoading)"
+                    class="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700/60 text-emerald-400 font-semibold text-xs p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center" title="Xuất file Excel">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Vùng hiển thị kết quả báo cáo -->
+    @if (_isLoading)
+    {
+        <div class="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-900/20 animate-pulse space-y-4 p-4">
+            <div class="h-8 bg-slate-800 rounded-md w-full"></div>
+            <div class="h-12 bg-slate-800/50 rounded-lg w-full"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button @onclick="LoadMasterWarehouses" class="px-3 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold cursor-pointer">Thử lại</button>
+        </div>
+    }
+    else
+    {
+        <div class="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/20 shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-900/60 border-b border-slate-800 text-slate-400 font-semibold select-none text-center">
+                            <th class="px-4 py-3.5 text-left">Mã ID Kho</th>
+                            <th class="px-4 py-3.5 text-left">Mã ID Vật tư</th>
+                            <th class="px-4 py-3.5 text-right bg-slate-900/20">Tồn đầu kỳ</th>
+                            <th class="px-4 py-3.5 text-right text-emerald-400/90">Nhập trong kỳ</th>
+                            <th class="px-4 py-3.5 text-right text-rose-400/90">Xuất trong kỳ</th>
+                            <th class="px-4 py-3.5 text-right bg-slate-900/40 text-indigo-400">Tồn cuối kỳ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        @if (!_reportRows.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-slate-500 font-medium">
+                                    Vui lòng thiết lập bộ lọc và nhấn "Xem báo cáo" để truy vấn số liệu.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var line in _reportRows)
+                            {
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-4 py-3.5 font-semibold text-slate-400 select-all">#@line.WarehouseId</td>
+                                    <td class="px-4 py-3.5 font-medium text-slate-200">#@line.MaterialId</td>
+                                    <td class="px-4 py-3.5 text-right bg-slate-900/10 font-medium select-all">@line.OpeningBalance.ToString("N3")</td>
+                                    <td class="px-4 py-3.5 text-right text-emerald-400/80 font-medium select-all">+@line.TotalIn.ToString("N3")</td>
+                                    <td class="px-4 py-3.5 text-right text-rose-400/80 font-medium select-all">-@line.TotalOut.ToString("N3")</td>
+                                    <td class="px-4 py-3.5 text-right bg-slate-900/30 font-bold text-indigo-400 select-all">@line.ClosingBalance.ToString("N3")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<StockSummaryReportItemDto> _reportRows = new();
+    private List<WarehouseItemDto> _warehouses = new();
+    private bool _isLoading = false;
+    private string? _errorMessage;
+
+    private string _selectedWarehouseId = "";
+    private DateTime _fromDate = DateTime.Today.AddDays(-30);
+    private DateTime _toDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMasterWarehouses();
+    }
+
+    private async Task LoadMasterWarehouses()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Nạp danh mục kho phân cấp động chuẩn xác khớp backend của bạn
+            var result = await ApiClient.GetAsync<WarehousePagedResponseDto>("api/warehouses?page=1&pageSize=100");
+            if (result != null && result.Items != null)
+            {
+                _warehouses = result.Items.Where(w => w.IsActive).ToList();
+            }
+            _isLoading = false;
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Không thể liên kết danh mục kho hàng cho bảng biểu.";
+            _isLoading = false;
+        }
+    }
+
+    private async Task ExecuteQuery()
+    {
+        if (_fromDate > _toDate)
+        {
+            _errorMessage = "Lỗi logic: Ngày bắt đầu không được phép lớn hơn ngày kết thúc báo cáo.";
+            return;
+        }
+
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Xây dựng đường dẫn URL khớp 100% với endpoint /api/reports/stock-summary của máy chủ backend của bạn
+            string url = $"api/reports/stock-summary?fromDate={_fromDate:yyyy-MM-dd}&toDate={_toDate:yyyy-MM-dd}";
+            
+            if (!string.IsNullOrEmpty(_selectedWarehouseId))
+            {
+                url += $"&warehouseId={_selectedWarehouseId}";
+            }
+            
+            var result = await ApiClient.GetAsync<StockSummaryReportResponseDto>(url);
+            if (result != null && result.Data != null)
+            {
+                _reportRows = result.Data;
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Gặp sự cố hệ thống hoặc mất kết nối mạng khi tổng hợp dữ liệu báo cáo.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ExportToExcel()
+    {
+        // Điều hướng trực tiếp sang endpoint xuất file Excel của máy chủ API theo đúng tài liệu thiết kế mục tiêu
+        string baseUrl = "http://localhost:5169/"; // Cổng chạy thực tế backend của bạn
+        string exportUrl = $"{baseUrl}api/reports/stock-summary/export?fromDate={_fromDate:yyyy-MM-dd}&toDate={_toDate:yyyy-MM-dd}";
+        
+        if (!string.IsNullOrEmpty(_selectedWarehouseId))
+        {
+            exportUrl += $"&warehouseId={_selectedWarehouseId}";
+        }
+        
+    NavigationManager.NavigateTo(exportUrl, forceLoad: true);
+    }
+}

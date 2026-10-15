@@ -1,0 +1,389 @@
+﻿@page "/warehouses"
+@rendermode InteractiveServer
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+
+<div class="space-y-6 animate-fade-in">
+    <!-- Tiêu đề & Nút Thêm mới -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Danh mục Kho hàng</h1>
+            <p class="text-sm text-slate-400 mt-1">Quản lý mạng lưới cấu trúc các vị trí kho lưu trữ trực thuộc hệ thống.</p>
+        </div>
+        <button @onclick="OpenCreateModal"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer flex items-center gap-2 self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>Thêm kho mới</span>
+        </button>
+    </div>
+
+    <!-- Thanh Tìm kiếm và Bộ lọc -->
+    <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center">
+        <div class="relative w-full md:flex-1">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </span>
+            <input type="text" @bind-value="_searchQuery" @bind-value:event="oninput" @onkeyup="HandleSearch"
+                   class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 text-sm transition-all"
+                   placeholder="Tìm kiếm theo mã kho hoặc tên kho..." />
+        </div>
+        <div class="w-full md:w-48">
+            <select @onchange="FilterByStatus" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-300 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="inactive">Tạm đóng cửa</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Vùng hiển thị nội dung -->
+    @if (_isLoading)
+    {
+        <div class="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-900/20 animate-pulse space-y-4 p-4">
+            <div class="h-8 bg-slate-800 rounded-md w-full"></div>
+            <div class="h-12 bg-slate-800/50 rounded-lg w-full"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button @onclick="LoadWarehouses" class="px-3 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold cursor-pointer">Thử lại</button>
+        </div>
+    }
+    else
+    {
+        <!-- Bảng Dữ liệu Thực tế -->
+        <div class="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/20 shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-900/60 border-b border-slate-800 text-slate-400 font-semibold select-none">
+                            <th class="px-6 py-3.5">Mã kho</th>
+                            <th class="px-6 py-3.5">Tên kho hàng</th>
+                            <th class="px-6 py-3.5">Vị trí / Địa chỉ</th>
+                            <th class="px-6 py-3.5 text-center">Trạng thái hoạt động</th>
+                            <th class="px-6 py-3.5 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        @if (!_filteredWarehouses.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="px-6 py-10 text-center text-slate-500 font-medium">
+                                    Không tìm thấy dữ liệu hệ thống kho nào phù hợp.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in _filteredWarehouses)
+                            {
+                                <tr class="hover:bg-slate-900/30 transition-colors">
+                                    <td class="px-6 py-3.5 font-semibold text-indigo-400 select-all">@item.WarehouseCode</td>
+                                    <td class="px-6 py-3.5 font-medium text-slate-200">@item.WarehouseName</td>
+                                    <td class="px-6 py-3.5 text-slate-400">Hệ thống tổng lưu trữ</td>
+                                    <td class="px-6 py-3.5 text-center">
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="inline-flex px-2 py-0.5 text-xxs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md">Sẵn sàng</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex px-2 py-0.5 text-xxs font-semibold bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-md">Đang khóa</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3.5 text-right">
+                                        <!-- Nút sửa: Gọi hàm OpenEditModal truyền Object của dòng hiện tại -->
+                                        <button @onclick="() => OpenEditModal(item)"
+                                                class="text-slate-400 hover:text-indigo-400 p-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors cursor-pointer inline-flex items-center" title="Chỉnh sửa kho">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- ================= MODAL 1: CỬA SỔ POPUP THÊM MỚI KHO HÀNG ================= -->
+    @if (_showCreateModal)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs select-none animate-fade-in">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative animate-scale-in">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-slate-200">Khai báo kho hàng mới</h3>
+                    <button type="button" @onclick="CloseCreateModal" class="text-slate-500 hover:text-slate-400 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <EditForm Model="@_createModel" OnValidSubmit="HandleCreateSubmit">
+                    <DataAnnotationsValidator />
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Mã kho hàng</label>
+                            <InputText @bind-Value="_createModel.WarehouseCode" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all placeholder-slate-700" placeholder="Ví dụ: TEST_WH_03" />
+                            <div class="mt-1 text-xs text-rose-400 font-medium">
+                                <ValidationMessage For="@(() => _createModel.WarehouseCode)" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tên kho chứa hàng</label>
+                            <InputText @bind-Value="_createModel.WarehouseName" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all placeholder-slate-700" placeholder="Ví dụ: Kho Vật Tư Miền Trung" />
+                            <div class="mt-1 text-xs text-rose-400 font-medium">
+                                <ValidationMessage For="@(() => _createModel.WarehouseName)" />
+                            </div>
+                        </div>
+
+                                                <!-- Vùng thông báo lỗi từ API nếu có -->
+                        @if (!string.IsNullOrEmpty(_modalErrorMessage))
+                        {
+                            <div class="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
+                                @_modalErrorMessage
+                            </div>
+                        }
+
+                        <!-- Thanh nút lệnh hoạt động của Modal Thêm mới -->
+                        <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-800/60">
+                            <button type="button" @onclick="CloseCreateModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl cursor-pointer transition-colors">
+                                Hủy bỏ
+                            </button>
+                            <button type="submit" disabled="@_isSubmitting" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors shadow-md shadow-indigo-600/10">
+                                Lưu danh mục
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <!-- ================= MODAL 2: POPUP CỬA SỔ CHỈNH SỬA KHO HÀNG ================= -->
+    @if (_showEditModal)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs select-none animate-fade-in">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative animate-scale-in">
+                <!-- Tiêu đề Modal Chỉnh sửa -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-slate-200">Chỉnh sửa kho hàng: #@_selectedWarehouseId</h3>
+                    <button type="button" @onclick="CloseEditModal" class="text-slate-500 hover:text-slate-400 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <EditForm Model="@_editModel" OnValidSubmit="HandleEditSubmit">
+                    <DataAnnotationsValidator />
+                    <div class="space-y-4">
+                        <!-- Mã kho hàng (Cố định) -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mã kho hàng (Cố định)</label>
+                            <input type="text" value="@_editModel.WarehouseCode" disabled class="w-full bg-slate-950/40 border border-slate-800/80 rounded-xl py-2 px-3 text-slate-500 text-sm outline-hidden cursor-not-allowed select-all" />
+                        </div>
+
+                        <!-- Tên kho chứa hàng -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tên kho chứa hàng</label>
+                            <InputText @bind-Value="_editModel.WarehouseName" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all" />
+                            <div class="mt-1 text-xs text-rose-400 font-medium">
+                                <ValidationMessage For="@(() => _editModel.WarehouseName)" />
+                            </div>
+                        </div>
+
+                        <!-- Trạng thái vận hành -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Trạng thái vận hành</label>
+                            <div class="flex items-center gap-3 bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                                <input type="checkbox" id="editIsActive" @bind="_editModel.IsActive" class="w-4 h-4 rounded-sm border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                <label for="editIsActive" class="text-sm font-medium text-slate-300 cursor-pointer select-none">
+                                    @(_editModel.IsActive ? "Kho đang mở cửa hoạt động" : "Tạm đóng cửa kho (Khóa đóng băng)")
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Thông báo lỗi nội bộ Modal Chỉnh sửa -->
+                        @if (!string.IsNullOrEmpty(_modalErrorMessage))
+                        {
+                            <div class="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
+                                @_modalErrorMessage
+                            </div>
+                        }
+
+                        <!-- Thanh nút lệnh hoạt động của Modal Chỉnh sửa -->
+                        <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-800/60">
+                            <button type="button" @onclick="CloseEditModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl cursor-pointer transition-colors">
+                                Hủy bỏ
+                            </button>
+                            <button type="submit" disabled="@_isSubmitting" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors shadow-md shadow-indigo-600/10">
+                                Cập nhật thay đổi
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<WarehouseItemDto> _warehouses = new();
+    private List<WarehouseItemDto> _filteredWarehouses = new();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchQuery = "";
+    private string _statusFilter = "all";
+
+    // 1. Quản lý trạng thái Modal Thêm mới
+    private bool _showCreateModal = false;
+    private CreateWarehouseDto _createModel = new();
+
+    // 2. Quản lý trạng thái Modal Chỉnh sửa
+    private bool _showEditModal = false;
+    private int _selectedWarehouseId = 0;
+    private UpdateWarehouseDto _editModel = new();
+
+    // Biến trạng thái gửi chung
+    private bool _isSubmitting = false;
+    private string? _modalErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWarehouses();
+    }
+
+    private async Task LoadWarehouses()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            
+            // Đã bổ sung kiểu Generic nạp gói phân trang <WarehousePagedResponseDto> để dọn sạch lỗi biên dịch
+            var result = await ApiClient.GetAsync<WarehousePagedResponseDto>("api/warehouses?page=1&pageSize=100");
+            if (result != null && result.Items != null)
+            {
+                _warehouses = result.Items;
+                ApplyFilters();
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Lỗi kết nối máy chủ không thể tải danh sách kho.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _createModel = new CreateWarehouseDto();
+        _modalErrorMessage = null;
+        _showCreateModal = true;
+    }
+
+    private void CloseCreateModal() => _showCreateModal = false;
+
+    private async Task HandleCreateSubmit()
+    {
+        if (_isSubmitting) return;
+        try
+        {
+            _isSubmitting = true;
+            _modalErrorMessage = null;
+            var result = await ApiClient.PostAsync<CreateWarehouseDto, object>("api/warehouses", _createModel);
+            if (result != null)
+            {
+                _showCreateModal = false;
+                await LoadWarehouses();
+            }
+        }
+        catch (Exception)
+        {
+            _modalErrorMessage = "Gặp sự cố kết nối máy chủ API hoặc mã kho hàng bị trùng lặp.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    // 🌟 LUỒNG XỬ LÝ CHỈNH SỬA KHO HÀNG (EDIT OPERATIONS)
+    private void OpenEditModal(WarehouseItemDto item)
+    {
+        _selectedWarehouseId = item.WarehouseId;
+        _modalErrorMessage = null;
+        
+        // Đổ thông tin dòng hiện tại lên form sửa
+        _editModel = new UpdateWarehouseDto
+        {
+            WarehouseCode = item.WarehouseCode,
+            WarehouseName = item.WarehouseName,
+            IsActive = item.IsActive
+        };
+        _showEditModal = true;
+    }
+
+    private void CloseEditModal() => _showEditModal = false;
+
+    private async Task HandleEditSubmit()
+    {
+        if (_isSubmitting) return;
+        try
+        {
+            _isSubmitting = true;
+            _modalErrorMessage = null;
+
+            // Gửi lệnh PUT chuẩn xác tới endpoint mấu chốt: api/warehouses/{id}
+            var result = await ApiClient.PutAsync<UpdateWarehouseDto, object>($"api/warehouses/{_selectedWarehouseId}", _editModel);
+            if (result != null)
+            {
+                _showEditModal = false;
+                await LoadWarehouses(); // Tải lại danh sách cập nhật trực tiếp
+            }
+        }
+        catch (Exception)
+        {
+            _modalErrorMessage = "Gặp sự cố máy chủ khi gửi lệnh cập nhật thông tin kho hàng.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+        private void HandleSearch() => ApplyFilters();
+
+    private void FilterByStatus(ChangeEventArgs e)
+    {
+        _statusFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = _warehouses.AsQueryable();
+        
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            string searchLower = _searchQuery.ToLower();
+            query = query.Where(w => w.WarehouseCode.ToLower().Contains(searchLower) ||
+                                     w.WarehouseName.ToLower().Contains(searchLower));
+        }
+        
+        if (_statusFilter == "active") query = query.Where(w => w.IsActive);
+        else if (_statusFilter == "inactive") query = query.Where(w => !w.IsActive);
+        
+        _filteredWarehouses = query.ToList();
+    }
+}

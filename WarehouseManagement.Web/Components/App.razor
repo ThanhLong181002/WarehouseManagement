@@ -1,0 +1,29 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <!-- Dòng 1: Nhúng file CSS toàn cục (Được tối ưu hóa tự động bởi app.MapStaticAssets) -->
+    <link rel="stylesheet" href="css/app.css" />
+
+    <!-- Dòng 2: Nhúng tệp CSS Isolation tự động của toàn bộ các Component trong Project -->
+    <link rel="stylesheet" href="WarehouseManagement.Web.styles.css" />
+    <script src="https://unpkg.com"></script>
+    <ImportMap />
+    
+    <!-- 🌟 ĐÃ SỬA: Bật Interactive cho tiêu đề / thẻ meta động nếu có -->
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <!-- 🌟 ĐÃ SỬA: Kích hoạt mạch tương tác động (SignalR) chuẩn .NET 10 cho toàn bộ luồng điều hướng trang -->
+    <Routes @rendermode="InteractiveServer" />
+    
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

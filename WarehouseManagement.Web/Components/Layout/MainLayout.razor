@@ -1,0 +1,49 @@
+﻿@inherits LayoutComponentBase
+@inject WarehouseManagement.Web.Services.TokenSession TokenSession
+@inject NavigationManager NavigationManager
+
+
+<div class="flex flex-col h-screen w-screen bg-slate-950 font-sans antialiased overflow-hidden">
+    <!-- Khung trên: Header độc lập -->
+    <Header />
+
+    <!-- Khung dưới: Gồm Sidebar và vùng nội dung chính -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Thanh Sidebar bên trái -->
+        <Sidebar />
+
+        <!-- Vùng nội dung nghiệp vụ bên phải -->
+        <main class="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
+            <!-- Vùng cuộn chứa nội dung trang -->
+            <div class="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                @Body
+            </div>
+
+            <!-- Thanh Footer cố định dưới đáy vùng nội dung -->
+            <Footer />
+        </main>
+    </div>
+</div>
+
+@code {
+    private bool _isInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // 1. Khôi phục Token từ LocalStorage dưới trình duyệt lên RAM C#
+            await TokenSession.InitializeAsync();
+            
+            _isInitialized = true;
+            StateHasChanged();
+
+            // 2. Kiểm tra an toàn bảo mật: Nếu chưa đăng nhập và không phải đang ở trang login, đẩy ra trang Login
+            var currentUri = NavigationManager.Uri.ToLower();
+            if (!TokenSession.IsAuthenticated && !currentUri.Contains("/login"))
+            {
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+    }
+}

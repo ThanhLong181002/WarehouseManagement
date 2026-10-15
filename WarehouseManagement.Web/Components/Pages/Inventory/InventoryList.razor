@@ -1,0 +1,222 @@
+﻿@page "/inventory"
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+
+<div class="space-y-6 animate-fade-in">
+    <!-- Tiêu đề trang -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Tra cứu Tồn kho</h1>
+        <p class="text-sm text-slate-400 mt-1">Xem số lượng tồn kho thực tế theo thời gian thực được xác thực từ máy chủ.</p>
+    </div>
+
+    <!-- Thanh bộ lọc tổ hợp (Multi-Filter Board) -->
+    <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Lọc theo Kho hàng -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Kho lưu trữ</label>
+            <select @onchange="OnWarehouseFilterChanged" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-300 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer">
+                <option value="">-- Tất cả các kho --</option>
+                @foreach (var wh in _warehouses)
+                {
+                    <option value="@wh.WarehouseId">@wh.WarehouseName (@wh.WarehouseCode)</option>
+                }
+            </select>
+        </div>
+
+        <!-- Tìm nhanh Vật tư -->
+        <div class="md:col-span-2">
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Tra cứu mã ID</label>
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </span>
+                <input type="number" @bind-value="_searchMaterialId" @bind-value:event="oninput" @onkeyup="HandleSearch"
+                       class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 text-sm transition-all"
+                       placeholder="Nhập chính xác ID vật tư cần tra cứu số dư..." />
+            </div>
+        </div>
+    </div>
+
+    <!-- Vùng hiển thị danh sách dữ liệu -->
+    @if (_isLoading)
+    {
+        <div class="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-900/20 animate-pulse space-y-4 p-4">
+            <div class="h-8 bg-slate-800 rounded-md w-full"></div>
+            <div class="h-12 bg-slate-800/50 rounded-lg w-full"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button @onclick="LoadInitialData" class="px-3 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold cursor-pointer">Thử lại</button>
+        </div>
+    }
+    else
+    {
+        <div class="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/20 shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-900/60 border-b border-slate-800 text-slate-400 font-semibold select-none">
+                            <th class="px-6 py-3.5">Mã ID Vật tư</th>
+                            <th class="px-6 py-3.5">Mã ID Kho hàng</th>
+                            <th class="px-6 py-3.5 text-right">Số lượng tồn thực tế</th>
+                            <th class="px-6 py-3.5 text-center">Thời điểm cập nhật</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        @if (_pagedResult.Items == null || !_pagedResult.Items.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="px-6 py-10 text-center text-slate-500 font-medium">
+                                    Không tìm thấy số dư tồn kho nào đáp ứng bộ lọc.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in _pagedResult.Items)
+                            {
+                                <tr class="hover:bg-slate-900/30 transition-colors">
+                                    <td class="px-6 py-3.5 font-semibold text-indigo-400 select-all">#@item.MaterialId</td>
+                                    <td class="px-6 py-3.5 text-slate-300">#@item.WarehouseId</td>
+                                    <td class="px-6 py-3.5 text-right font-bold text-slate-100 select-all @(item.QuantityOnHand <= 5 ? "text-amber-400!" : "")">
+                                        @item.QuantityOnHand.ToString("N3")
+                                    </td>
+                                    <td class="px-6 py-3.5 text-center text-slate-500 text-xs">
+                                        @item.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:suffix")
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Thanh điều hướng Phân trang (Pagination Bar) -->
+            @if (_pagedResult.TotalPages > 1)
+            {
+                <div class="px-6 py-4 border-t border-slate-800/60 flex items-center justify-between bg-slate-900/40 select-none">
+                    <p class="text-xs text-slate-400">
+                        Hiển thị trang <span class="font-semibold text-slate-200">@_pagedResult.Page</span> / <span class="font-semibold text-slate-200">@_pagedResult.TotalPages</span> (Tổng <span class="font-semibold text-slate-200">@_pagedResult.TotalItems</span> bản ghi)
+                    </p>
+                    <div class="flex items-center gap-1.5">
+                        <button disabled="@( _pagedResult.Page == 1 )" @onclick="() => ChangePage(_pagedResult.Page - 1)"
+                                class="p-2 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+
+                        @for (int i = 1; i <= _pagedResult.TotalPages; i++)
+                        {
+                            var pageIndex = i;
+                            <button @onclick="() => ChangePage(pageIndex)"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer @(pageIndex == _pagedResult.Page ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10" : "border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800")">
+                                @pageIndex
+                            </button>
+                        }
+
+                        <button disabled="@( _pagedResult.Page == _pagedResult.TotalPages )" @onclick="() => ChangePage(_pagedResult.Page + 1)"
+                                class="p-2 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private InventoryBalancesPagedResponseDto _pagedResult = new();
+    private List<WarehouseItemDto> _warehouses = new();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private int? _searchMaterialId;
+    private string _selectedWarehouseId = "";
+    private int _pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Nạp danh mục kho phân cấp động chuẩn xác để đưa vào Dropdown bộ lọc
+            var whResult = await ApiClient.GetAsync<WarehousePagedResponseDto>("api/warehouses?page=1&pageSize=100");
+            if (whResult != null && whResult.Items != null)
+            {
+                _warehouses = whResult.Items.Where(w => w.IsActive).ToList();
+            }
+            await LoadInventoryData(1);
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Không thể liên kết dữ liệu khởi tạo hệ thống.";
+            _isLoading = false;
+        }
+    }
+
+        private async Task LoadInventoryData(int page)
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Xây dựng đường dẫn URL khớp 100% với endpoint /api/inventory-balances của máy chủ backend của bạn
+            var url = $"api/inventory-balances?page={page}&pageSize={_pageSize}";
+            
+            if (!string.IsNullOrEmpty(_selectedWarehouseId))
+            {
+                url += $"&warehouseId={_selectedWarehouseId}";
+            }
+            if (_searchMaterialId.HasValue)
+            {
+                url += $"&materialId={_searchMaterialId.Value}";
+            }
+            
+            // Đã cập nhật chỉ định kiểu Generic <InventoryBalancesPagedResponseDto> để dọn sạch lỗi suy luận kiểu dữ liệu
+            var result = await ApiClient.GetAsync<InventoryBalancesPagedResponseDto>(url);
+            if (result != null)
+            {
+                _pagedResult = result;
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Gặp sự cố kết nối máy chủ khi tải dữ liệu tồn kho.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSearch()
+    {
+        await LoadInventoryData(1);
+    }
+
+    private async Task OnWarehouseFilterChanged(ChangeEventArgs e)
+    {
+        _selectedWarehouseId = e.Value?.ToString() ?? "";
+        await LoadInventoryData(1);
+    }
+
+    private async Task ChangePage(int targetPage)
+    {
+        if (targetPage >= 1 && targetPage <= _pagedResult.TotalPages)
+        {
+            await LoadInventoryData(targetPage);
+        }
+    }
+}

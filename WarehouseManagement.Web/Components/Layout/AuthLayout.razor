@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<div class="min-h-screen w-screen bg-slate-950 flex flex-col justify-between font-sans antialiased overflow-x-hidden relative">
+
+    <!-- Hiệu ứng ánh sáng nền mờ tạo cảm giác hiện đại (Glow Effect) -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[350px] bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent blur-3xl pointer-events-none"></div>
+
+    <!-- Header tối giản cho trang đăng nhập -->
+    <header class="w-full h-16 px-6 flex items-center justify-between border-b border-slate-900 bg-slate-950/50 backdrop-blur-md z-10">
+        <div class="flex items-center gap-3">
+            <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://w3.org">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+            <span class="font-bold text-base tracking-wide bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                WAREHOUSE MANAGEMENT
+            </span>
+        </div>
+        <div class="text-xs text-slate-500 font-medium">
+            Hệ thống Nội bộ
+        </div>
+    </header>
+
+    <!-- Khu vực hiển thị Form Đăng nhập (Nội dung thay đổi của @Body) -->
+    <main class="flex-1 flex items-center justify-center p-4 z-10">
+        <div class="w-full max-w-md transition-all duration-300">
+            @Body
+        </div>
+    </main>
+
+    <!-- Footer tối giản đồng bộ chân trang -->
+    <footer class="w-full h-12 px-6 flex items-center justify-center border-t border-slate-900 bg-slate-950/30 text-xxs text-slate-600 tracking-wide z-10">
+        &copy; @DateTime.Now.Year - Phát triển bởi Đội ngũ kỹ thuật | Phiên bản 1.0.0
+    </footer>
+
+</div>

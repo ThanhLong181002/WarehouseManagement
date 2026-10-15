@@ -1,0 +1,267 @@
+﻿@page "/transactions"
+@rendermode InteractiveServer
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+@inject NavigationManager NavigationManager
+
+<div class="space-y-6 animate-fade-in">
+    <!-- Tiêu đề & Nút Tạo mới -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Phiếu Nhập / Xuất kho</h1>
+            <p class="text-sm text-slate-400 mt-1">Quản lý và tra cứu toàn bộ lịch sử các giao dịch nhập kho, xuất kho của hệ thống.</p>
+        </div>
+        <button @onclick="NavigateToCreate" 
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer flex items-center gap-2 self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>Lập phiếu giao dịch mới</span>
+        </button>
+    </div>
+
+    <!-- Bộ lọc đa năng (Multi-Filter Board) -->
+    <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+        <!-- Tìm kiếm theo số chứng từ -->
+        <div class="sm:col-span-2 md:col-span-1">
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Số chứng từ</label>
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </span>
+                <input type="text" @bind-value="_searchQuery" @bind-value:event="oninput" @onkeyup="HandleFilterChanged"
+                       class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-indigo-500 text-sm transition-all"
+                       placeholder="Mã phiếu..." />
+            </div>
+        </div>
+
+        <!-- Lọc Loại giao dịch -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Loại giao dịch</label>
+            <select @onchange="OnTypeFilterChanged" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-300 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer">
+                <option value="">Tất cả loại phiếu</option>
+                <option value="StockIn">Nhập kho (StockIn)</option>
+                <option value="StockOut">Xuất kho (StockOut)</option>
+            </select>
+        </div>
+
+        <!-- Lọc Trạng thái phiếu -->
+        <div>
+            <label class="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-2">Trạng thái ghi sổ</label>
+            <select @onchange="OnStatusFilterChanged" class="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-2 px-3 text-slate-300 focus:outline-hidden focus:border-indigo-500 text-sm transition-all cursor-pointer">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Draft">Lưu tạm (Draft)</option>
+                <option value="Posted">Đã ghi sổ (Posted)</option>
+                <option value="Cancelled">Đã hủy (Cancelled)</option>
+                <option value="Reversed">Đã đảo ngược (Reversed)</option>
+            </select>
+        </div>
+
+        <!-- Nút xóa bộ lọc nhanh -->
+        <div>
+            <button @onclick="ResetFilters" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold py-2 px-4 rounded-xl border border-slate-700/50 transition-colors cursor-pointer h-9.5">
+                Xóa bộ lọc
+            </button>
+        </div>
+    </div>
+
+    <!-- Vùng hiển thị dữ liệu chính -->
+    @if (_isLoading)
+    {
+        <div class="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-900/20 animate-pulse space-y-4 p-4">
+            <div class="h-8 bg-slate-800 rounded-md w-full"></div>
+            <div class="h-12 bg-slate-800/50 rounded-lg w-full"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button @onclick="() => LoadTransactions(1)" class="px-3 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold cursor-pointer">Thử lại</button>
+        </div>
+    }
+    else
+    {
+        <div class="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/20 shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-900/60 border-b border-slate-800 text-slate-400 font-semibold select-none">
+                            <th class="px-6 py-3.5">Số phiếu</th>
+                            <th class="px-6 py-3.5">Loại phiếu</th>
+                            <th class="px-6 py-3.5">Mã ID Kho</th>
+                            <th class="px-6 py-3.5">Ngày lập phiếu</th>
+                            <th class="px-6 py-3.5 text-center">Trạng thái</th>
+                            <th class="px-6 py-3.5 text-right">Chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        @if (_pagedResult.Items == null || !_pagedResult.Items.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="px-6 py-10 text-center text-slate-500 font-medium">
+                                    Không tìm thấy phiếu giao dịch kho nào phù hợp.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in _pagedResult.Items)
+                            {
+                                <tr class="hover:bg-slate-900/30 transition-colors">
+                                    <td class="px-6 py-3.5 font-bold text-indigo-400 select-all">@item.TransactionNumber</td>
+                                    <td class="px-6 py-3.5">
+                                        @if (item.TransactionType == "StockIn")
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Nhập kho
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 text-rose-400 font-medium">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Xuất kho
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3.5 text-slate-300 font-medium">#@item.WarehouseId</td>
+                                    <td class="px-6 py-3.5 text-slate-400">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="px-6 py-3.5 text-center">
+                                        <span class="inline-flex px-2.5 py-0.5 text-xxs font-semibold tracking-wide border rounded-md @GetStatusStyle(item.Status)">
+                                            @item.Status
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3.5 text-right">
+                                        <button @onclick="() => NavigateToDetail(item.StockTransactionId)" 
+                                                class="text-indigo-400 hover:text-indigo-300 font-semibold text-xs px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg border border-indigo-500/10 cursor-pointer transition-all">
+                                            Xem phiếu
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Thanh phân trang hệ thống -->
+            @if (_pagedResult.TotalPages > 1)
+            {
+                <div class="px-6 py-4 border-t border-slate-800/60 flex items-center justify-between bg-slate-900/40 select-none">
+                    <p class="text-xs text-slate-400">
+                        Hiển thị trang <span class="font-semibold text-slate-200">@_pagedResult.Page</span> / <span class="font-semibold text-slate-200">@_pagedResult.TotalPages</span> (Tổng số <span class="font-semibold text-slate-200">@_pagedResult.TotalCount</span> chứng từ)
+                    </p>
+                    <div class="flex items-center gap-1.5">
+                        <!-- Nút lùi trang -->
+                        <button disabled="@(_pagedResult.Page == 1)" @onclick="() => ChangePage(_pagedResult.Page - 1)"
+                                class="p-2 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+
+                        <!-- Danh sách các số trang -->
+                        @for (int i = 1; i <= _pagedResult.TotalPages; i++)
+                        {
+                            var pageIndex = i;
+                            <button @onclick="() => ChangePage(pageIndex)"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer @(pageIndex == _pagedResult.Page ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10" : "border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800")">
+                                @pageIndex
+                            </button>
+                        }
+
+                        <!-- Nút tiến trang -->
+                        <button disabled="@(_pagedResult.Page == _pagedResult.TotalPages)" @onclick="() => ChangePage(_pagedResult.Page + 1)"
+                                class="p-2 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private TransactionPagedResponseDto _pagedResult = new();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchQuery = "";
+    private string _selectedType = "";
+    private string _selectedStatus = "";
+    private int _pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactions(1);
+    }
+
+    private async Task LoadTransactions(int page)
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Xây dựng URL tham số bám sát endpoint /api/stock-transactions của máy chủ backend
+            var url = $"api/stock-transactions?page={page}&pageSize={_pageSize}&search={Uri.EscapeDataString(_searchQuery)}&transactionType={_selectedType}&status={_selectedStatus}";
+            
+            // Bổ sung kiểu định danh Generic để tránh dính lỗi biên dịch suy luận kiểu dữ liệu
+            var result = await ApiClient.GetAsync<TransactionPagedResponseDto>(url);
+            if (result != null)
+            {
+                _pagedResult = result;
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Không thể kết nối máy chủ để tải danh sách phiếu giao dịch.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleFilterChanged() => await LoadTransactions(1);
+
+    private async Task OnTypeFilterChanged(ChangeEventArgs e)
+    {
+        _selectedType = e.Value?.ToString() ?? "";
+        await LoadTransactions(1);
+    }
+
+    private async Task OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        _selectedStatus = e.Value?.ToString() ?? "";
+        await LoadTransactions(1);
+    }
+
+    private async Task ResetFilters()
+    {
+        _searchQuery = "";
+        _selectedType = "";
+        _selectedStatus = "";
+        await LoadTransactions(1);
+    }
+
+    private async Task ChangePage(int targetPage)
+    {
+        if (targetPage >= 1 && targetPage <= _pagedResult.TotalPages)
+        {
+            await LoadTransactions(targetPage);
+        }
+    }
+
+    private void NavigateToCreate() => NavigationManager.NavigateTo("transactions/create");
+    private void NavigateToDetail(int id) => NavigationManager.NavigateTo($"transactions/{id}");
+
+    private string GetStatusStyle(string status) => status switch
+    {
+        "Posted" => "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+        "Draft" => "bg-slate-800 border-slate-700 text-slate-400",
+        "Cancelled" => "bg-rose-500/10 border-rose-500/20 text-rose-400",
+        "Reversed" => "bg-amber-500/10 border-amber-500/20 text-amber-400",
+        _ => "bg-slate-800 border-slate-700 text-slate-400"
+    };
+}

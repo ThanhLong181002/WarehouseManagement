@@ -1,0 +1,221 @@
+﻿@page "/transactions/{Id:int}"
+@rendermode InteractiveServer
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+@inject NavigationManager NavigationManager
+
+<div class="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
+    <!-- Thanh điều hướng quay lại -->
+    <div>
+        <button @onclick="NavigateBack" class="text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors bg-transparent border-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            <span>Quay lại danh sách phiếu</span>
+        </button>
+        <div class="flex items-center gap-3 mt-2">
+            <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Chi tiết chứng từ kho</h1>
+            @if (_txData != null)
+            {
+                <span class="inline-flex px-2.5 py-0.5 rounded-md text-xs font-bold tracking-wide border @GetStatusStyle(_txData.Status)">
+                    @_txData.Status
+                </span>
+            }
+        </div>
+        <p class="text-sm text-slate-400 mt-1">Mã hệ thống định danh phiếu: #@Id</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+            <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 h-48"></div>
+            <div class="md:col-span-2 bg-slate-900/40 border border-slate-800 rounded-2xl p-5 h-48"></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button @onclick="LoadTransactionDetail" class="px-3 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold cursor-pointer">Tải lại</button>
+        </div>
+    }
+    else if (_txData != null)
+    {
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <!-- KHỐI TRÁI: THÔNG TIN TỔNG QUAN & NÚT GHI SỔ -->
+            <div class="space-y-4">
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-2">Thông tin chung</h3>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <p class="text-slate-500 text-xs">Số chứng từ</p>
+                            <p class="font-bold text-slate-200 select-all mt-0.5 text-xs">@_txData.TransactionNumber</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs">Loại giao dịch</p>
+                            <p class="font-semibold mt-0.5 @(_txData.TransactionType == "StockIn" ? "text-emerald-400" : "text-rose-400")">
+                                @(_txData.TransactionType == "StockIn" ? "Nhập kho vật tư" : "Xuất kho điều chuyển")
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs">Mã ID Kho thực hiện</p>
+                            <p class="font-medium text-slate-300 mt-0.5">#@_txData.WarehouseId</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs">Ngày khởi tạo</p>
+                            <p class="text-slate-400 mt-0.5">@_txData.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                        </div>
+                        @if (_txData.PostedAt.HasValue)
+                        {
+                            <div>
+                                <p class="text-slate-500 text-xs">Ngày ghi sổ tồn kho</p>
+                                <p class="text-emerald-400/90 mt-0.5">@_txData.PostedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                            </div>
+                        }
+                        <div>
+                            <p class="text-slate-500 text-xs">Lý do / Diễn giải</p>
+                            <p class="text-slate-300 mt-0.5 italic text-xs">@(string.IsNullOrWhiteSpace(_txData.Reason) ? "Không có diễn giải dữ liệu." : _txData.Reason)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🌟 BỔ SUNG: Nút bấm Ghi sổ / Hủy dành riêng cho trạng thái DRAFT -->
+                @if (_txData.Status == "Draft")
+                {
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-2">
+                        @if (!string.IsNullOrEmpty(_actionErrorMessage))
+                        {
+                            <div class="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xxs rounded-xl">
+                                @_actionErrorMessage
+                            </div>
+                        }
+                        <button @onclick="PostTransaction" disabled="@_isProcessingAction"
+                                class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/10">
+                            @if (_isProcessingAction)
+                            {
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span>Đang ghi sổ dữ liệu...</span>
+                            }
+                            else
+                            {
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Ghi sổ phiếu kho (Post)</span>
+                            }
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <!-- KHỐI PHẢI: BẢNG CHI TIẾT VẬT TƯ -->
+            <div class="md:col-span-2 border border-slate-800/80 rounded-2xl overflow-hidden bg-slate-900/20 shadow-xs">
+                <div class="px-5 py-3.5 bg-slate-900/40 border-b border-slate-800">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Danh sách vật tư đính kèm</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-900/10 border-b border-slate-800 text-slate-400 font-semibold select-none">
+                                <th class="px-5 py-3">Mã vật tư</th>
+                                <th class="px-5 py-3">Tên vật tư quy cách</th>
+                                <th class="px-5 py-3 text-center">ĐVT</th>
+                                <th class="px-5 py-3 text-right">Số lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                            @foreach (var line in _txData.Details)
+                            {
+                                <tr class="hover:bg-slate-900/10 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-indigo-400 select-all">@line.MaterialCode</td>
+                                    <td class="px-5 py-3 font-medium text-slate-200">@line.MaterialName</td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span class="bg-slate-800 text-slate-400 text-xxs px-2 py-0.5 rounded border border-slate-700/50">@line.BaseUnit</span>
+                                    </td>
+                                    <td class="px-5 py-3 text-right font-bold text-slate-100 select-all">@line.Quantity.ToString("N3")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private TransactionDetailViewDto? _txData;
+    private bool _isLoading = true;
+    private bool _isProcessingAction = false;
+    private string? _errorMessage;
+    private string? _actionErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactionDetail();
+    }
+
+    private async Task LoadTransactionDetail()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            var result = await ApiClient.GetAsync<TransactionDetailViewDto>($"api/stock-transactions/{Id}");
+            if (result != null)
+            {
+                _txData = result;
+            }
+            else
+            {
+                _errorMessage = "Không thể tìm thấy dữ liệu chứng từ kho yêu cầu.";
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Gặp sự cố kết nối máy chủ khi truy vấn dữ liệu chi tiết.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // 🌟 LUỒNG XỬ LÝ GHI SỔ PHIẾU (POST TRANSACTION RUNTIME)
+        // 🌟 LUỒNG XỬ LÝ GHI SỔ PHIẾU (POST TRANSACTION RUNTIME)
+    private async Task PostTransaction()
+    {
+        if (_isProcessingAction) return;
+
+        try
+        {
+            _isProcessingAction = true;
+            _actionErrorMessage = null;
+
+            // Gọi đúng lệnh POST lên endpoint xử lý ghi sổ của backend: /api/stock-transactions/{id}/post
+            var result = await ApiClient.PostAsync<object, object>($"api/stock-transactions/{Id}/post", new { });
+            
+            // Nạp lại chi tiết để tận hưởng giao diện đổi sang nhãn Posted xanh lá rực rỡ
+            await LoadTransactionDetail();
+        }
+        catch (Exception)
+        {
+            _actionErrorMessage = "Thất bại: Kho lưu trữ không đủ số lượng vật tư tồn khả dụng để xuất.";
+        }
+        finally
+        {
+            _isProcessingAction = false;
+        }
+    }
+
+    private void NavigateBack() => NavigationManager.NavigateTo("transactions");
+
+    private string GetStatusStyle(string status) => status switch
+    {
+        "Posted" => "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+        "Draft" => "bg-slate-800 border-slate-700 text-slate-400",
+        "Cancelled" => "bg-rose-500/10 border-rose-500/20 text-rose-400",
+        "Reversed" => "bg-amber-500/10 border-amber-500/20 text-amber-400",
+        _ => "bg-slate-800 border-slate-700 text-slate-400"
+    };
+}

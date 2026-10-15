@@ -1,7 +1,38 @@
+
+# .NET build output
 **/bin/
 **/obj/
+TestResults/
+
+# Visual Studio
 .vs/
 .vscode/
 *.user
 *.suo
+*.sln.docstates
+
+# Local configuration and secrets
 appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.local.json
+.env
+.env.*
+!.env.example
+secrets.json
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# SQL Server local database and backups
+*.bak
+*.mdf
+*.ldf
+
+# Operating system files
+Thumbs.db
+.DS_Store
+
+# Node.js dependencies and generated output
+node_modules/
+npm-debug.log*

@@ -1,0 +1,99 @@
+﻿@inject NavigationManager NavigationManager
+@inject WarehouseManagement.Web.Services.TokenSession TokenSession
+
+<aside class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col h-full select-none">
+    <!-- Khu vực Menu Điều hướng -->
+    <nav class="flex-1 py-4 px-3 overflow-y-auto space-y-6 scrollbar-thin">
+
+        <!-- Nhóm B: Dashboard và Danh mục -->
+        <div>
+            <p class="px-3 text-xxs font-bold text-slate-500 uppercase tracking-widest mb-2">Tổng quan & Danh mục</p>
+            <div class="space-y-1">
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="" Match="NavLinkMatch.All" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="materials" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span>Quản lý vật tư</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="warehouses" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span>Quản lý kho</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="inventory" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span>Tra cứu tồn kho</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <!-- Nhóm C: Nghiệp vụ kho -->
+        <div>
+            <p class="px-3 text-xxs font-bold text-slate-500 uppercase tracking-widest mb-2">Giao dịch nghiệp vụ</p>
+            <div class="space-y-1">
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="transactions" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Phiếu nhập / xuất</span>
+                </NavLink>
+
+                <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                         href="reports/stock-summary" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                    <span>Báo cáo tồn kho</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <!-- Nhóm D: Hệ thống & Cấu hình (Hiển thị có điều kiện) -->
+        @if (TokenSession.Role == "Admin")
+        {
+            <div>
+                <p class="px-3 text-xxs font-bold text-slate-500 uppercase tracking-widest mb-2">Quản trị hệ thống</p>
+                <div class="space-y-1">
+                    <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors duration-150"
+                             href="users" ActiveClass="bg-indigo-600/10! text-indigo-400! font-semibold!">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span>Quản lý người dùng</span>
+                    </NavLink>
+                </div>
+            </div>
+        }
+    </nav>
+</aside>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Re-render khi có sự thay đổi quyền (Role) động từ session
+        TokenSession.OnSessionChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        TokenSession.OnSessionChanged -= StateHasChanged;
+    }
+}

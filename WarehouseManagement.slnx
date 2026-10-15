@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="WarehouseManagement.Api.Tests/WarehouseManagement.Api.Tests.csproj" />
   <Project Path="WarehouseManagement.Api/WarehouseManagement.Api.csproj" />
+  <Project Path="WarehouseManagement.Web/WarehouseManagement.Web.csproj" Id="b5dea234-3dc7-4547-a5d7-d514edc30823" />
 </Solution>

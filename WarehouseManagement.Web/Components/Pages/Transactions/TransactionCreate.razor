@@ -1,0 +1,255 @@
+﻿@page "/transactions/create"
+@rendermode InteractiveServer
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+@inject NavigationManager NavigationManager
+
+<div class="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
+    <!-- Thanh điều hướng quay lại -->
+    <div>
+        <button @onclick="NavigateBack" class="text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors bg-transparent border-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            <span>Quay lại danh sách phiếu</span>
+        </button>
+        <h1 class="text-2xl font-bold text-slate-100 tracking-tight mt-2">Lập phiếu giao dịch kho mới</h1>
+        <p class="text-sm text-slate-400 mt-1">Khởi tạo chứng từ nhập kho vật tư hoặc xuất kho điều chuyển hệ thống.</p>
+    </div>
+
+    @if (_isInitLoading)
+    {
+        <div class="p-8 text-center text-sm text-slate-500 animate-pulse">Đang liên kết danh mục hệ thống kho và vật tư...</div>
+    }
+    else
+    {
+        <EditForm Model="@_model" OnValidSubmit="SubmitForm">
+            <DataAnnotationsValidator />
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                <!-- KHỐI TRÁI: THÔNG TIN CHUNG CHỨNG TỪ (MASTER) -->
+                <div class="md:col-span-1 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 space-y-5">
+                    <h3 class="text-sm font-bold text-slate-200 tracking-wide border-b border-slate-800 pb-2">Thông tin chung</h3>
+
+                    <!-- Chọn Kho hàng -->
+                    <div>
+                        <label class="block text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2">Kho hàng thực hiện</label>
+                        <InputSelect @bind-Value="_model.WarehouseId" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer">
+                            <option value="">-- Chọn kho hàng --</option>
+                            @foreach (var wh in _warehouses)
+                            {
+                                <option value="@wh.WarehouseId">@wh.WarehouseName (@wh.WarehouseCode)</option>
+                            }
+                        </InputSelect>
+                        <div class="mt-1 text-xs text-rose-400 font-medium">
+                            <ValidationMessage For="@(() => _model.WarehouseId)" />
+                        </div>
+                    </div>
+
+                    <!-- Chọn Loại phiếu -->
+                    <div>
+                        <label class="block text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2">Loại giao dịch kho</label>
+                        <InputSelect @bind-Value="_model.TransactionType" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer">
+                            <option value="StockIn">Nhập kho vật tư (StockIn)</option>
+                            <option value="StockOut">Xuất kho điều chuyển (StockOut)</option>
+                        </InputSelect>
+                    </div>
+
+                    <!-- Ô nhập Diễn giải -->
+                    <div>
+                        <label class="block text-xxs font-bold text-slate-400 uppercase tracking-wider mb-2">Lý do / Diễn giải nội dung</label>
+                        <InputTextArea @bind-Value="_model.Reason" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all placeholder-slate-700" placeholder="Nhập lý do nhập xuất kho..." />
+                    </div>
+                </div>
+
+                <!-- KHỐI PHẢI: CHI TIẾT VẬT TƯ ĐÍNH KÈM (DETAILS) -->
+                <div class="md:col-span-2 space-y-4">
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 shadow-xs">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
+                            <h3 class="text-sm font-bold text-slate-200 tracking-wide">Chi tiết danh sách vật tư cấp phát</h3>
+                            <button type="button" @onclick="AddItemLine" class="text-indigo-400 hover:text-indigo-300 text-xs font-semibold flex items-center gap-1 bg-transparent border-0 cursor-pointer transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Thêm dòng vật tư</span>
+                            </button>
+                        </div>
+
+                        <!-- Danh sách các dòng mặt hàng nhập xuất -->
+                        <div class="space-y-3 max-h-[45vh] overflow-y-auto pr-1 scrollbar-thin">
+                            @if (!_model.Details.Any())
+                            {
+                                <div class="py-12 text-center text-sm text-slate-500 italic">Vui lòng bấm "Thêm dòng vật tư" để chọn mặt hàng.</div>
+                            }
+                            else
+                            {
+                                @for (int i = 0; i < _model.Details.Count; i++)
+                                {
+                                    var index = i;
+                                    var line = _model.Details[index];
+
+                                    <div class="flex items-start gap-3 p-3 bg-slate-950/30 border border-slate-800/50 rounded-xl animate-fade-in relative group">
+                                        <!-- Chọn Vật tư thông minh qua Dropdown mã code -->
+                                        <div class="w-2/3">
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Vật tư danh mục</label>
+                                            <InputSelect @bind-Value="line.MaterialId" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer">
+                                                <option value="">-- Chọn vật tư cần nhập/xuất --</option>
+                                                @foreach (var mat in _masterMaterials)
+                                                {
+                                                    <option value="@mat.MaterialId">@mat.MaterialCode - @mat.MaterialName (@mat.BaseUnit)</option>
+                                                }
+                                            </InputSelect>
+                                            <div class="mt-1 text-[10px] text-rose-400 font-medium">
+                                                <ValidationMessage For="@(() => line.MaterialId)" />
+                                            </div>
+                                        </div>
+
+                                        <!-- Số lượng -->
+                                        <div class="flex-1">
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Số lượng</label>
+                                            <InputNumber @bind-Value="line.Quantity" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-3 text-slate-200 text-sm focus:outline-hidden focus:border-indigo-500 text-right font-semibold transition-all" />
+                                            <div class="mt-1 text-[10px] text-rose-400 font-medium">
+                                                <ValidationMessage For="@(() => line.Quantity)" />
+                                            </div>
+                                        </div>
+
+                                        <!-- Nút Xóa dòng -->
+                                        <div class="pt-5">
+                                            <button type="button" @onclick="() => RemoveItemLine(index)" class="text-slate-600 hover:text-rose-400 p-2 rounded-xl hover:bg-rose-500/10 transition-colors bg-transparent border-0 cursor-pointer inline-flex items-center">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Thanh thông báo lỗi Validation tổng hợp từ API -->
+                    @if (!string.IsNullOrEmpty(_globalErrorMessage))
+                    {
+                        <div class="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span>@_globalErrorMessage</span>
+                        </div>
+                    }
+
+                                        <!-- Khối nút bấm Gửi/Hủy phiếu -->
+                    <div class="flex items-center justify-end gap-3 bg-slate-900/20 border border-slate-800/60 rounded-xl p-4">
+                        <button type="button" @onclick="NavigateBack" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer">
+                            Hủy lập phiếu
+                        </button>
+                        <button type="submit" disabled="@(_isSubmitting || !_model.Details.Any())"
+                                class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-lg shadow-indigo-600/10 flex items-center gap-1.5">
+                            @if (_isSubmitting)
+                            {
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span>Đang đẩy dữ liệu ghi sổ...</span>
+                            }
+                            else
+                            {
+                                <span>Lưu và Ghi sổ chứng từ</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private CreateTransactionDto _model = new();
+    private List<WarehouseItemDto> _warehouses = new();
+    private List<MaterialItemDto> _masterMaterials = new(); // Danh mục vật tư dùng chung
+    private bool _isInitLoading = true;
+    private bool _isSubmitting = false;
+    private string? _globalErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isInitLoading = true;
+            _globalErrorMessage = null;
+
+            // 1. Gọi song song nạp cả danh mục kho và danh mục vật tư thực tế từ máy chủ API bằng Generic chuẩn hóa
+            var whTask = ApiClient.GetAsync<WarehousePagedResponseDto>("api/warehouses?page=1&pageSize=100");
+            var matTask = ApiClient.GetAsync<MaterialPagedResponseDto>("api/materials?page=1&pageSize=100");
+            
+            await Task.WhenAll(whTask, matTask);
+
+            if (whTask.Result != null && whTask.Result.Items != null)
+            {
+                _warehouses = whTask.Result.Items.Where(w => w.IsActive).ToList();
+            }
+
+            if (matTask.Result != null && matTask.Result.Items != null)
+            {
+                _masterMaterials = matTask.Result.Items.Where(m => m.IsActive).ToList();
+            }
+            
+            // Khởi tạo sẵn một dòng vật tư trống ban đầu
+            AddItemLine();
+        }
+        catch (Exception)
+        {
+            _globalErrorMessage = "Lỗi khởi tạo hệ thống danh mục kho bãi và vật tư.";
+        }
+        finally
+        {
+            _isInitLoading = false;
+        }
+    }
+
+    private void AddItemLine()
+    {
+        _model.Details.Add(new CreateTransactionDetailDto { Quantity = 1 });
+    }
+
+    private void RemoveItemLine(int index)
+    {
+        if (index >= 0 && index < _model.Details.Count)
+        {
+            _model.Details.RemoveAt(index);
+        }
+    }
+
+        private async Task SubmitForm()
+    {
+        if (_isSubmitting) return;
+        
+        if (_model.Details.Any(i => !i.MaterialId.HasValue))
+        {
+            _globalErrorMessage = "Lỗi nghiệp vụ: Vui lòng lựa chọn cụ thể mặt hàng vật tư cho tất cả các dòng.";
+            return;
+        }
+
+        try
+        {
+            _isSubmitting = true;
+            _globalErrorMessage = null;
+
+            // 🌟 ĐÃ BỔ SUNG: Gán ID người lập bằng 1 (Admin hệ thống) khớp với tài khoản trong database của bạn
+            _model.CreatedByUserId = 1; 
+
+            // Gửi dữ liệu đồng bộ cấu trúc tuyệt đối lên máy chủ
+            var result = await ApiClient.PostAsync<CreateTransactionDto, object>("api/stock-transactions", _model);
+            if (result != null)
+            {
+                NavigationManager.NavigateTo("transactions");
+            }
+            else
+            {
+                _globalErrorMessage = "Không nhận được phản hồi ghi sổ hợp lệ từ máy chủ API.";
+            }
+        }
+        catch (Exception)
+        {
+            _globalErrorMessage = "Gặp sự cố kết nối máy chủ API khi ghi sổ chứng từ kho.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+
+    private void NavigateBack() => NavigationManager.NavigateTo("transactions");
+}

@@ -1,0 +1,39 @@
+﻿@page "/not-found"
+@inject NavigationManager NavigationManager
+
+<div class="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center animate-fade-in select-none">
+    <!-- Khối đồ họa mã số lỗi 404 kỹ thuật số -->
+    <div class="mb-4 relative">
+        <span class="text-8xl font-black bg-gradient-to-b from-indigo-500/20 to-slate-800/10 bg-clip-text text-transparent tracking-widest">
+            404
+        </span>
+        <div class="absolute inset-0 flex items-center justify-center text-indigo-400">
+            <svg class="w-12 h-12 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://w3.org">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Nội dung thông báo hỏng liên kết -->
+    <div class="max-w-md space-y-2">
+        <h2 class="text-xl font-bold text-slate-200 tracking-tight">Không tìm thấy trang yêu cầu</h2>
+        <p class="text-xs text-slate-500 leading-relaxed">
+            Đường dẫn hệ thống bạn đang truy cập không tồn tại, đã bị gỡ bỏ, hoặc đã được thay đổi sang một địa chỉ định danh khác.
+        </p>
+    </div>
+
+    <!-- Hành động quay lại an toàn -->
+    <div class="mt-8">
+        <button @onclick="NavigateToHome" 
+                class="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl font-semibold text-xs py-2.5 px-4 cursor-pointer transition-all shadow-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Quay lại trang chủ</span>
+        </button>
+    </div>
+</div>
+
+@code {
+    private void NavigateToHome() => NavigationManager.NavigateTo("");
+}

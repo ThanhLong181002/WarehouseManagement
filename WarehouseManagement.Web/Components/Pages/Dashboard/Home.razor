@@ -1,0 +1,226 @@
+﻿@page "/"
+@using WarehouseManagement.Web.Models
+@inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject TokenSession TokenSession
+@using WarehouseManagement.Web.Services
+
+<div class="space-y-6 animate-fade-in">
+    <!-- Tiêu đề Dashboard -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Bảng điều khiển tổng quan</h1>
+        <p class="text-sm text-slate-400 mt-1">Số liệu thống kê thời gian thực tổng hợp trực tiếp từ hệ thống dữ liệu kho.</p>
+    </div>
+
+    @if (_isLoading)
+    {
+        <!-- ================= SKELETON LOADING STATE ================= -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-6 space-y-3 animate-pulse">
+                    <div class="h-4 w-24 bg-slate-800 rounded-sm"></div>
+                    <div class="h-8 w-16 bg-slate-800 rounded-md"></div>
+                </div>
+            }
+        </div>
+        <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-6 space-y-4 animate-pulse">
+            <div class="h-5 w-40 bg-slate-800 rounded-sm"></div>
+            <div class="space-y-2"><div class="h-12 bg-slate-800/50 rounded-lg"></div><div class="h-12 bg-slate-800/50 rounded-lg"></div></div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <!-- ================= ERROR HANDLING STATE ================= -->
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex justify-between items-center">
+            <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                @_errorMessage
+            </span>
+            <button @onclick="InitDashboardData" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-xs font-semibold rounded-lg transition-colors cursor-pointer">Tải lại dữ liệu</button>
+        </div>
+    }
+    else
+    {
+        <!-- ================= REAL DATA STATE ================= -->
+        <!-- Khối 3 Thẻ số liệu lớn -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- Thẻ Vật tư -->
+            <div class="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 flex items-center justify-between shadow-xs">
+                <div class="space-y-1">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Danh mục vật tư</p>
+                    <p class="text-3xl font-bold text-slate-100 tracking-tight">@_totalMaterials</p>
+                </div>
+                <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                </div>
+            </div>
+
+            <!-- Thẻ Kho hàng -->
+            <div class="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 flex items-center justify-between shadow-xs">
+                <div class="space-y-1">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mạng lưới kho chứa</p>
+                    <p class="text-3xl font-bold text-slate-100 tracking-tight">@_totalWarehouses</p>
+                </div>
+                <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                </div>
+            </div>
+
+            <!-- Thẻ Tổng khối lượng tồn kho -->
+            <div class="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 flex items-center justify-between shadow-xs">
+                <div class="space-y-1">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng sản lượng tồn kho</p>
+                    <p class="text-3xl font-bold text-slate-100 tracking-tight text-indigo-400">@_totalStockQuantity.ToString("N2")</p>
+                </div>
+                <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng kê Giao dịch mới nhất -->
+        <div class="bg-slate-900/30 border border-slate-800/60 rounded-xl overflow-hidden shadow-xs">
+            <div class="px-6 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40">
+                <h3 class="font-bold text-slate-200 text-sm tracking-wide">Nhật ký giao dịch kho vận gần đây</h3>
+                <span class="text-xxs font-medium bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700/50">Realtime API</span>
+            </div>
+
+            <div class="divide-y divide-slate-800/40">
+                @if (!_recentTransactions.Any())
+                {
+                    <div class="p-8 text-center text-slate-500 text-sm italic">
+                        Chưa ghi nhận chứng từ phát sinh nào trên hệ thống.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var tx in _recentTransactions)
+                    {
+                        <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-900/10 transition-colors">
+                            <div class="flex items-start gap-3">
+                                <!-- Huy hiệu Icon Nhập / Xuất bám sát API -->
+                                <div class="mt-0.5 p-1.5 rounded-lg shrink-0 @(tx.TransactionType == "StockIn" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")">
+                                    @if (tx.TransactionType == "StockIn")
+                                    {
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                    }
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-sm text-slate-200 tracking-wide select-all">@tx.TransactionNumber</span>
+                                        <span class="text-xs text-slate-600">•</span>
+                                        <span class="text-xs text-slate-400 font-medium">Mã kho thực hiện: #@tx.WarehouseId</span>
+                                    </div>
+                                    <p class="text-xxs text-slate-500 mt-1">Loại: @(tx.TransactionType == "StockIn" ? "Nhập kho vật tư" : "Xuất kho điều chuyển") | Ngày lập: @tx.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Trạng thái Phiếu bám sát API (Draft, Posted, Cancelled, Reversed) -->
+                            <div class="sm:text-right">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xxs font-bold tracking-wide border @GetStatusStyle(tx.Status)">
+                                    @tx.Status
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    // Các biến lưu trữ kết quả tổng hợp
+    private int _totalMaterials = 0;
+    private int _totalWarehouses = 0;
+    private decimal _totalStockQuantity = 0;
+    private List<BackendTransactionItemDto> _recentTransactions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Kiểm tra nếu chưa đăng nhập thì đẩy thẳng ra trang login
+        if (!TokenSession.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        // Kiểm tra phân quyền theo chính sách (Ví dụ: Chỉ cho phép WarehouseKeeper hoặc Admin)
+        if (TokenSession.Role != "WarehouseKeeper" && TokenSession.Role != "Admin")
+        {
+            // Bạn có thể chuyển hướng tới trang 403 hoặc thông báo lỗi
+            _errorMessage = "Bạn không có quyền truy cập trang này.";
+            _isLoading = false;
+            return;
+        }
+        await InitDashboardData();
+    }
+
+        private async Task InitDashboardData()
+        {
+            try
+            {
+                _isLoading = true;
+                _errorMessage = null;
+
+                var materialTask = ApiClient.GetAsync<PagedMetadataResponse>("api/materials?page=1&pageSize=1");
+                var warehouseTask = ApiClient.GetAsync<PagedMetadataResponse>("api/warehouses?page=1&pageSize=1");
+                var balanceTask = ApiClient.GetAsync<InventoryBalanceResponseDto>("api/inventory-balances?page=1&pageSize=100");
+                var transactionTask = ApiClient.GetAsync<TransactionPagedResponseDto>("api/stock-transactions?page=1&pageSize=5");
+
+                await Task.WhenAll(materialTask, warehouseTask, balanceTask, transactionTask);
+
+                if (materialTask.Result != null) _totalMaterials = materialTask.Result.TotalCount;
+                if (warehouseTask.Result != null) _totalWarehouses = warehouseTask.Result.TotalCount;
+            
+                if (balanceTask.Result != null && balanceTask.Result.Items != null)
+                {
+                    _totalStockQuantity = 0;
+                    foreach (var balance in balanceTask.Result.Items)
+                    {
+                        _totalStockQuantity += balance.QuantityOnHand;
+                    }
+                }
+
+                if (transactionTask.Result != null && transactionTask.Result.Items != null)
+                {
+                    _recentTransactions = transactionTask.Result.Items;
+                }
+            }
+            catch (ApiUnauthorizedException) // 🔴 Xử lý Token hết hạn hoặc Lỗi xác thực
+            {
+                TokenSession.ClearSession(); // Xóa phiên đăng nhập phía client
+                NavigationManager.NavigateTo("/login", forceLoad: true); // Quay về trang đăng nhập
+            }
+            catch (ApiForbiddenException) // 🚫 Lỗi tài khoản không có quyền truy cập
+            {
+                _errorMessage = "Tài khoản của bạn không có quyền truy cập vào các số liệu kho này.";
+            }
+            catch (Exception)
+            {
+                _errorMessage = "Gặp sự cố đồng bộ dữ liệu tổng hợp từ hệ thống Endpoint máy chủ.";
+            }
+            finally
+            {
+                _isLoading = false;
+            }
+        }
+
+    // Định dạng màu sắc chuẩn chỉ bám sát trạng thái thực tế từ Backend
+    private string GetStatusStyle(string status) => status switch
+    {
+        "Posted" => "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+        "Draft" => "bg-slate-800 border-slate-700 text-slate-400",
+        "Cancelled" => "bg-rose-500/10 border-rose-500/20 text-rose-400",
+        "Reversed" => "bg-amber-500/10 border-amber-500/20 text-amber-400",
+        _ => "bg-slate-800 border-slate-700 text-slate-400"
+    };
+}
