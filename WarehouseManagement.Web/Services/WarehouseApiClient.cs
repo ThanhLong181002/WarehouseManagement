@@ -21,9 +21,7 @@ public sealed class WarehouseApiClient(
         string path,
         CancellationToken cancellationToken = default)
     {
-        // 🌟 BỔ SUNG BẢO MẬT SONG SONG: Ép Header Bearer Token cố định vào Client trước khi gọi dữ liệu
-        ApplyGlobalAuthorizationHeader();
-
+        // ✅ ĐÃ SỬA: Tạo Request độc lập và đính kèm Token an toàn
         using var request = CreateRequest(HttpMethod.Get, path);
         using var response = await _client.SendAsync(
             request, cancellationToken);
@@ -40,9 +38,7 @@ public sealed class WarehouseApiClient(
         TRequest body,
         CancellationToken cancellationToken = default)
     {
-        // 🌟 BỔ SUNG BẢO MẬT SONG SONG: Ép Header Bearer Token cố định vào Client trước khi gọi dữ liệu
-        ApplyGlobalAuthorizationHeader();
-
+        // ✅ ĐÃ SỬA: Tạo Request độc lập và đính kèm Token an toàn
         using var request = CreateRequest(HttpMethod.Post, path);
         request.Content = JsonContent.Create(body);
 
@@ -61,9 +57,8 @@ public sealed class WarehouseApiClient(
         TRequest body,
         CancellationToken cancellationToken = default)
     {
-        ApplyGlobalAuthorizationHeader();
-
-        using var request = CreateRequest(HttpMethod.Put, path); // Ép phương thức gửi đi là PUT
+        // ✅ ĐÃ SỬA: Tạo Request độc lập và đính kèm Token an toàn
+        using var request = CreateRequest(HttpMethod.Put, path);
         request.Content = JsonContent.Create(body);
 
         using var response = await _client.SendAsync(
@@ -76,35 +71,22 @@ public sealed class WarehouseApiClient(
             cancellationToken: cancellationToken);
     }
 
-    private void ApplyGlobalAuthorizationHeader()
-    {
-        if (session.IsAuthenticated)
-        {
-            // Thiết lập Authorization dạng mặc định toàn cục cho instance Client để chống mất Token khi chạy đa luồng
-            _client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", session.AccessToken);
-        }
-        else
-        {
-            _client.DefaultRequestHeaders.Authorization = null;
-        }
-    }
-
     private HttpRequestMessage CreateRequest(
-        HttpMethod method,
-        string path)
+    HttpMethod method,
+    string path)
     {
         var request = new HttpRequestMessage(method, path);
 
-        if (session.IsAuthenticated)
+        // ✅ ĐÃ SỬA CHÍNH XÁC: Chỉ sử dụng thuộc tính AccessToken duy nhất từ TokenSession của bạn
+        if (session.IsAuthenticated && !string.IsNullOrWhiteSpace(session.AccessToken))
         {
             request.Headers.Authorization =
-                new AuthenticationHeaderValue(
-                    "Bearer", session.AccessToken);
+                new AuthenticationHeaderValue("Bearer", session.AccessToken);
         }
 
         return request;
     }
+
 
     private static void EnsureAuthorized(HttpResponseMessage response)
     {

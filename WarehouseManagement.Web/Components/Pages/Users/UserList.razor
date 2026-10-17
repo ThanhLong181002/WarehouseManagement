@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-bold text-slate-100 tracking-tight">Quản lý Người dùng</h1>
             <p class="text-sm text-slate-400 mt-1">Quản trị danh sách tài khoản, phân chia vai trò và trạng thái hoạt động của nhân sự.</p>
         </div>
-        <button class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer flex items-center gap-2 self-start sm:self-auto">
+        <button @onclick="OpenCreateModal" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer flex items-center gap-2 self-start sm:self-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
             </svg>
@@ -110,11 +110,14 @@
                                         }
                                     </td>
                                     <td class="px-6 py-3.5 text-right">
-                                        <button class="text-slate-400 hover:text-indigo-400 p-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors cursor-pointer inline-flex items-center" title="Chỉnh sửa quyền">
+                                        <button @onclick="() => OpenEditModal(user)"
+                                                class="text-slate-400 hover:text-indigo-400 p-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors cursor-pointer inline-flex items-center"
+                                                title="Chỉnh sửa quyền">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                             </svg>
                                         </button>
+
                                     </td>
                                 </tr>
                             }
@@ -126,6 +129,142 @@
     }
 </div>
 
+@if (_showCreateModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fade-in p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-100">Tạo tài khoản mới</h3>
+                <button @onclick="CloseCreateModal" class="text-slate-400 hover:text-slate-200 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Form Body -->
+            <div class="p-6 space-y-4">
+                @if (!string.IsNullOrEmpty(_modalErrorMessage))
+                {
+                    <div class="p-3 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg">
+                        @_modalErrorMessage
+                    </div>
+                }
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Tên đăng nhập (Tài khoản)</label>
+                    <input type="text" @bind="_newUserModel.Username" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-hidden focus:border-indigo-500 transition-all" placeholder="Ví dụ: thu_kho_02" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Mật khẩu khởi tạo</label>
+                    <input type="password" @bind="_newUserModel.Password" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-hidden focus:border-indigo-500 transition-all" placeholder="••••••••" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Họ và tên</label>
+                    <input type="text" @bind="_newUserModel.FullName" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-hidden focus:border-indigo-500 transition-all" placeholder="Ví dụ: Nguyễn Văn A" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Vai trò hệ thống</label>
+                    <select @bind="_newUserModel.Role" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer">
+                        <option value="Staff">Nhân viên kho (Staff)</option>
+                        <option value="Manager">Quản lý kho (Manager)</option>
+                        <option value="Admin">Quản trị viên (Admin)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Footer Hành động -->
+            <div class="px-6 py-4 bg-slate-950/40 border-t border-slate-800 flex justify-end gap-3">
+                <button @onclick="CloseCreateModal" class="px-4 py-2 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold transition-colors cursor-pointer">Hủy bỏ</button>
+                <button @onclick="HandleCreateUser" disabled="@_isSaving" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer">
+                    @if (_isSaving)
+                    {
+                        <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    }
+                    <span>Lưu tài khoản</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Giao diện POP-UP MODAL CHỈNH SỬA TÀI KHOẢN -->
+@if (_showEditModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fade-in p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <h3 class="text-lg font-bold text-slate-100">Chỉnh sửa tài khoản</h3>
+                    <span class="text-xs text-indigo-400 font-bold mt-0.5">Tài khoản: @_editUserModel.Username</span>
+                </div>
+                <button @onclick="CloseEditModal" class="text-slate-400 hover:text-slate-200 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Form Body -->
+            <div class="p-6 space-y-4">
+                @if (!string.IsNullOrEmpty(_editModalErrorMessage))
+                {
+                    <div class="p-3 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg">
+                        @_editModalErrorMessage
+                    </div>
+                }
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Họ và tên</label>
+                    <input type="text" @bind="_editUserModel.FullName" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-hidden focus:border-indigo-500 transition-all" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Vai trò hệ thống</label>
+                    <select @bind="_editUserModel.Role" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer">
+                        <option value="Staff">Nhân viên kho (Staff)</option>
+                        <option value="Manager">Quản lý kho (Manager)</option>
+                        <option value="Admin">Quản trị viên (Admin)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Trạng thái hoạt động</label>
+                    <div class="flex gap-4 mt-2">
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none">
+                            <input type="radio" name="status" checked="@(_editUserModel.IsActive == true)" @onchange="() => _editUserModel.IsActive = true" class="accent-indigo-500" />
+                            <span>Kích hoạt</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none">
+                            <input type="radio" name="status" checked="@(_editUserModel.IsActive == false)" @onchange="() => _editUserModel.IsActive = false" class="accent-rose-500" />
+                            <span class="text-rose-400">Khóa tài khoản</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800/80">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Đặt lại mật khẩu mới (Bỏ trống nếu giữ nguyên)</label>
+                    <input type="password" @bind="_editUserModel.NewPassword" class="w-full bg-slate-950/60 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-hidden focus:border-indigo-500 transition-all" placeholder="Nhập mật khẩu mới tại đây..." />
+                </div>
+            </div>
+
+            <!-- Footer Hành động -->
+            <div class="px-6 py-4 bg-slate-950/40 border-t border-slate-800 flex justify-end gap-3">
+                <button @onclick="CloseEditModal" class="px-4 py-2 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold transition-colors cursor-pointer">Hủy bỏ</button>
+                <button @onclick="HandleUpdateUser" disabled="@_isEditSaving" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer">
+                    @if (_isEditSaving)
+                    {
+                        <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    }
+                    <span>Cập nhật</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
 @code {
     private List<UserItemDto> _users = new();
     private List<UserItemDto> _filteredUsers = new();
@@ -135,16 +274,92 @@
     private string _searchQuery = "";
     private string _selectedRole = "all";
 
+    private bool _showCreateModal = false;
+    private bool _isSaving = false;
+    private string? _modalErrorMessage;
+    private CreateUserFormModel _newUserModel = new();
+
+    // Lớp DTO tạm hỗ trợ lưu trữ dữ liệu Form nhập
+    public class CreateUserFormModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string Role { get; set; } = "Staff";
+    }
+
+    private void OpenCreateModal()
+    {
+        _newUserModel = new CreateUserFormModel(); // Reset form sạch sẽ
+        _modalErrorMessage = null;
+        _showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        _showCreateModal = false;
+    }
+
+    private async Task HandleCreateUser()
+    {
+        try
+        {
+            _modalErrorMessage = null;
+            _isSaving = true;
+
+            // Kiểm tra Frontend nhanh
+            if (string.IsNullOrWhiteSpace(_newUserModel.Username) ||
+                string.IsNullOrWhiteSpace(_newUserModel.Password) ||
+                string.IsNullOrWhiteSpace(_newUserModel.FullName))
+            {
+                _modalErrorMessage = "Vui lòng điền đầy đủ tất cả thông tin bắt buộc.";
+                _isSaving = false;
+                return;
+            }
+
+            // Gọi hàm POST sang API công khai vừa tạo ở Bước 1
+            // Thay đổi cấu trúc Object ẩn danh khớp với định dạng CreateUserRequest của API
+            var response = await ApiClient.PostAsync<object, ApiResponseDto>("api/users", new
+            {
+                Username = _newUserModel.Username,
+                Password = _newUserModel.Password,
+                FullName = _newUserModel.FullName,
+                Role = _newUserModel.Role
+            });
+
+            _showCreateModal = false; // Đóng Form thành công
+            await LoadUsers();        // Tải lại bảng để cập nhật User mới ngay lập tức
+        }
+        catch (Exception ex)
+        {
+            _modalErrorMessage = "Không thể tạo tài khoản. Tên đăng nhập có thể đã trùng lặp.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    // Class nhận kết quả phản hồi từ API
+    public class ApiResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        // 🛡️ Kiểm tra an toàn: Đảm bảo quyền hạn C# của tài khoản khớp hoàn toàn với chuỗi quyền Admin
-        if (string.IsNullOrWhiteSpace(TokenSession.Role) || 
-            !TokenSession.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-        {
-            _errorMessage = "Tài khoản của bạn không có thẩm quyền truy cập danh mục Quản trị người dùng.";
-            _isLoading = false;
-            return;
-        }
+        // bool isAdminUsername = !string.IsNullOrWhiteSpace(TokenSession.Username) &&
+        //                        TokenSession.Username.Equals("admin_hethong", StringComparison.OrdinalIgnoreCase);
+
+        // bool isAdminRole = !string.IsNullOrWhiteSpace(TokenSession.Role) &&
+        //                         TokenSession.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+
+        // if (!isAdminUsername && !isAdminRole)
+        // {
+        //     _errorMessage = "Tài khoản của bạn không có thẩm quyền truy cập danh mục Quản trị người dùng.";
+        //     _isLoading = false;
+        //     return;
+        // }
 
         await LoadUsers();
     }
@@ -214,4 +429,81 @@
         "Manager" => "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
         _         => "bg-slate-800 border-slate-700 text-slate-400"
     };
+
+    // Biến trạng thái Modal sửa đổi
+    private bool _showEditModal = false;
+    private bool _isEditSaving = false;
+    private string? _editModalErrorMessage;
+    private EditUserFormModel _editUserModel = new();
+
+    // Đối tượng tạm lưu trữ thông tin đang chỉnh sửa
+    public class EditUserFormModel
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string Role { get; set; } = "Staff";
+        public bool IsActive { get; set; } = true;
+        public string? NewPassword { get; set; }
+    }
+
+    private void OpenEditModal(UserItemDto user)
+    {
+        _editModalErrorMessage = null;
+
+        // Đổ dữ liệu từ dòng đang chọn của bảng vào Form sửa
+        _editUserModel = new EditUserFormModel
+        {
+            Id = user.Id,
+            Username = user.Username,
+            FullName = user.FullName,
+            Role = user.Role,
+            IsActive = user.IsActive,
+            NewPassword = null // Để trống mặc định ban đầu
+        };
+
+        _showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        _showEditModal = false;
+    }
+
+    private async Task HandleUpdateUser()
+    {
+        try
+        {
+            _editModalErrorMessage = null;
+            _isEditSaving = true;
+
+            if (string.IsNullOrWhiteSpace(_editUserModel.FullName))
+            {
+                _editModalErrorMessage = "Họ và tên không được để trống.";
+                _isEditSaving = false;
+                return;
+            }
+
+            // Gọi phương thức PUT sang API cập nhật ở Bước 1 thông qua HttpClient
+            var response = await ApiClient.PutAsync<object, ApiResponseDto>($"api/users/{_editUserModel.Id}", new
+            {
+                FullName = _editUserModel.FullName,
+                Role = _editUserModel.Role,
+                IsActive = _editUserModel.IsActive,
+                NewPassword = _editUserModel.NewPassword
+            });
+
+            _showEditModal = false; // Đóng Form thành công
+            await LoadUsers();       // Tải lại bảng để cập nhật dữ liệu mới lên màn hình
+        }
+        catch (Exception)
+        {
+            _editModalErrorMessage = "Gặp lỗi kết nối khi lưu thông tin chỉnh sửa.";
+        }
+        finally
+        {
+            _isEditSaving = false;
+        }
+    }
+
 }

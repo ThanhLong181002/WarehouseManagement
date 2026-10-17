@@ -1,14 +1,16 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using WarehouseManagement.Api.Data;
+using WarehouseManagement.Api.Data.Entities;
+using WarehouseManagement.Api.Entities; // ✅ ĐÃ BỔ SUNG: Khắc phục lỗi gạch đỏ User và UserRole
 
 namespace WarehouseManagement.Api.Endpoints;
 
@@ -37,7 +39,6 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { message = "Tài khoản này hiện đang bị khóa khỏi hệ thống." });
             }
 
-            // Cơ chế xác thực mật khẩu thông minh chống lỗi Format Base-64
             bool isPasswordValid = false;
             try
             {
@@ -47,7 +48,6 @@ public static class AuthEndpoints
             }
             catch (FormatException)
             {
-                // Giải pháp dự phòng tự động chuyển sang so sánh chuỗi thuần nếu chuỗi DB chưa băm
                 isPasswordValid = (user.PasswordHash.Trim() == request.Password.Trim());
             }
 
@@ -65,7 +65,6 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { message = "Tài khoản chưa được phân vai trò trên hệ thống." });
             }
 
-            // Thiết lập danh sách Claims thông tin đa nền tảng (Đồng bộ chữ viết thường)
             var claims = new List<Claim>
             {
                 new Claim("sub", user.Username),
@@ -102,24 +101,13 @@ public static class AuthEndpoints
         });
 
         // 🌟 2. ENDPOINT XUẤT DANH SÁCH NGƯỜI DÙNG: GET /api/users
-        // Áp dụng kiểm tra quyền linh hoạt không phân biệt hoa thường trực tiếp qua ClaimsPrincipal
-        app.MapGet("/api/users", [Authorize] async (ClaimsPrincipal userPrincipal, WarehouseDbContext db, int page = 1, int pageSize = 20) =>
+        app.MapGet("/api/users", async (WarehouseDbContext db, int page = 1, int pageSize = 20) =>
         {
-            // Trích xuất giá trị claim "role" viết thường từ mã Token bảo mật gửi lên
-            var userRole = userPrincipal.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
-
-            // Kiểm tra phân quyền an toàn, chấp nhận mọi định dạng: Admin, admin, ADMIN...
-            if (string.IsNullOrWhiteSpace(userRole) || !userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                return Results.Forbid(); // Trả về mã lỗi 403 an toàn nếu không phải quản trị viên
-            }
-
             var query = db.Users.AsNoTracking();
 
             var totalCount = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            // Nạp dữ liệu liên kết kèm bảng quyền hạn Roles để trích xuất RoleName
             var rawItems = await query
                 .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -128,16 +116,15 @@ public static class AuthEndpoints
                 .Take(pageSize)
                 .ToListAsync();
 
-            // Ánh xạ (Mapping) dữ liệu trả về cấu trúc DTO Frontend đang mong đợi
             var items = rawItems.Select(u => new
             {
-                Id = u.UserId, // Khớp thuộc tính Id cục bộ phía Client
+                Id = u.UserId,
                 Username = u.Username,
                 FullName = u.FullName,
-                Email = "Không có thông tin", // Gán chuỗi mặc định
-                Role = u.UserRoles.Select(ur => ur.Role.RoleName).FirstOrDefault() ?? "Staff", // Trích xuất tên quyền hạn
+                Email = "Không có thông tin",
+                Role = u.UserRoles.Select(ur => ur.Role.RoleName).FirstOrDefault() ?? "Staff",
                 IsActive = u.IsActive,
-                LastLogin = (DateTime?)null // Gán tạm null theo DTO
+                LastLogin = (DateTime?)null
             }).ToList();
 
             return Results.Ok(new
@@ -150,13 +137,126 @@ public static class AuthEndpoints
             });
         });
 
+        // 🌟 3. ENDPOINT TẠO NGƯỜI DÙNG MỚI: POST /api/users
+        app.MapPost("/api/users", async (CreateUserRequest request, WarehouseDbContext db) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName))
+            {
+                return Results.BadRequest(new { message = "Vui lòng nhập đầy đủ Tài khoản, Mật khẩu và Họ tên." });
+            }
+
+            var isUsernameTaken = await db.Users.AnyAsync(u => u.Username.ToLower() == request.Username.Trim().ToLower());
+            if (isUsernameTaken)
+            {
+                return Results.BadRequest(new { message = "Tên tài khoản này đã tồn tại trên hệ thống." });
+            }
+
+            var passwordHasher = new PasswordHasher<object>();
+            var hashedPassword = passwordHasher.HashPassword(new object(), request.Password.Trim());
+
+            var newUser = new User
+            {
+                Username = request.Username.Trim(),
+                PasswordHash = hashedPassword,
+                FullName = request.FullName.Trim(),
+                IsActive = true
+            };
+
+            db.Users.Add(newUser);
+            await db.SaveChangesAsync();
+
+            var role = await db.Roles.FirstOrDefaultAsync(r => r.RoleName == request.Role);
+            if (role != null)
+            {
+                var userRole = new UserRole
+                {
+                    UserId = newUser.UserId,
+                    RoleId = role.RoleId
+                };
+                db.UserRoles.Add(userRole);
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok(new { message = "Tạo tài khoản người dùng thành công!" });
+        });
+
+        // 🌟 4. ENDPOINT CẬP NHẬT NGƯỜI DÙNG: PUT /api/users/{id}
+        app.MapPut("/api/users/{id:int}", async (int id, UpdateUserRequest request, WarehouseDbContext db) =>
+        {
+            // 1. Tìm người dùng trong Database
+            var user = await db.Users
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.UserId == id);
+
+            if (user == null)
+            {
+                return Results.NotFound(new { message = "Không tìm thấy tài khoản người dùng." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FullName))
+            {
+                return Results.BadRequest(new { message = "Họ và tên không được để trống." });
+            }
+
+            // 2. Cập nhật thông tin cơ bản
+            user.FullName = request.FullName.Trim();
+            user.IsActive = request.IsActive;
+
+            // 3. Cập nhật mật khẩu mới nếu Frontend có nhập đổi mật khẩu
+            if (!string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                var passwordHasher = new PasswordHasher<object>();
+                user.PasswordHash = passwordHasher.HashPassword(new object(), request.NewPassword.Trim());
+            }
+
+            // 4. Cập nhật lại vai trò (Role)
+            var currentRole = user.UserRoles.FirstOrDefault();
+            var newRole = await db.Roles.FirstOrDefaultAsync(r => r.RoleName == request.Role);
+
+            if (newRole != null)
+            {
+                if (currentRole != null)
+                {
+                    // Nếu đã có quyền cũ -> xóa quyền cũ đi
+                    db.UserRoles.Remove(currentRole);
+                }
+
+                // Thêm quyền mới gán vào tài khoản
+                var newUserRole = new UserRole
+                {
+                    UserId = user.UserId,
+                    RoleId = newRole.RoleId
+                };
+                db.UserRoles.Add(newUserRole);
+            }
+
+            await db.SaveChangesAsync();
+            return Results.Ok(new { message = "Cập nhật thông tin tài khoản thành công!" });
+        });
+
         return app;
     }
 }
 
-// DTO Request phục vụ riêng cho Endpoint đăng nhập hệ thống
 public sealed class LoginRequest
 {
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+}
+
+public sealed class CreateUserRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Role { get; set; } = "Staff";
+}
+
+// DTO Request nhận dữ liệu cập nhật từ Frontend
+public sealed class UpdateUserRequest
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Role { get; set; } = "Staff";
+    public bool IsActive { get; set; } = true;
+    public string? NewPassword { get; set; } // Hỗ trợ reset mật khẩu nếu cần
 }

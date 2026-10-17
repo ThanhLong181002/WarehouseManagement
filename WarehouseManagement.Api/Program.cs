@@ -14,6 +14,18 @@ builder.Services.AddDbContext<WarehouseDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("WarehouseDb")));
 
+// 🌟 BỔ SUNG CHÍNH XÁC: Đăng ký dịch vụ CORS cho phép cổng ứng dụng Web Blazor kết nối
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5193", "https://localhost:5193", "https://localhost:7193")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // --- 2. ĐĂNG KÝ DỊCH VỤ XÁC THỰC JWT BEARER CHO .NET 10 ---
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"] ?? "Chuoi_Khoa_Bao_Mat_Sieu_Cap_Cua_Kho_Vat_Tu_2026_Dotnet10";
@@ -39,7 +51,6 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
         ClockSkew = TimeSpan.Zero,
 
-        // 🌟 KHÓA CHỐNG LỖI 403: Ép Middleware đọc đúng trường viết thường từ chuỗi JWT
         NameClaimType = "sub",
         RoleClaimType = "role"
     };
@@ -52,6 +63,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseCors(); //
 
 // --- 3. ĐĂNG KÝ MIDDLEWARE BẢO MẬT (Đặt trước các Endpoint định tuyến) ---
 //app.UseHttpsRedirection();
