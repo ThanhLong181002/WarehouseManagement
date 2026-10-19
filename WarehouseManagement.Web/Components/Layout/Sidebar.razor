@@ -1,9 +1,17 @@
 ﻿@inject NavigationManager NavigationManager
 @inject WarehouseManagement.Web.Services.TokenSession TokenSession
 
-<aside class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col h-full select-none">
+@if (IsOpen)
+{
+    <button type="button" class="mobile-sidebar-backdrop" aria-label="Đóng menu" @onclick="OnClose"></button>
+}
+<aside class="sidebar-shell w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col h-full select-none @(IsOpen ? "mobile-sidebar-open" : "")">
+    <div class="mobile-sidebar-heading">
+        <span>Điều hướng</span>
+        <button type="button" aria-label="Đóng menu" @onclick="OnClose">×</button>
+    </div>
     <!-- Khu vực Menu Điều hướng -->
-    <nav class="flex-1 py-4 px-3 overflow-y-auto space-y-6 scrollbar-thin">
+    <nav class="flex-1 py-4 px-3 overflow-y-auto space-y-6 scrollbar-thin" @onclick="OnClose">
 
         <!-- Nhóm B: Dashboard và Danh mục -->
         <div>
@@ -86,6 +94,9 @@
 </aside>
 
 @code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
     protected override void OnInitialized()
     {
         // Re-render khi có sự thay đổi quyền (Role) động từ session

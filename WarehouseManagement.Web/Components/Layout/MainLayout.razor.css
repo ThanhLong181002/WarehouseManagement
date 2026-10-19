@@ -18,3 +18,163 @@
         right: 0.75rem;
         top: 0.5rem;
     }
+
+/* Mobile-only layout enhancements. Desktop rules are intentionally untouched. */
+.mobile-menu-toggle,
+.mobile-sidebar-heading,
+.mobile-sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .app-shell {
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+    }
+
+    .app-header {
+        flex-shrink: 0;
+        gap: .65rem;
+        padding-left: .75rem;
+        padding-right: .75rem;
+    }
+
+    .mobile-menu-toggle {
+        display: inline-flex;
+        flex: 0 0 auto;
+        width: 2.5rem;
+        height: 2.5rem;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--color-slate-700);
+        border-radius: .75rem;
+        color: var(--color-slate-200);
+        background: transparent;
+        cursor: pointer;
+    }
+
+        .mobile-menu-toggle svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+    .header-brand-text {
+        display: block;
+        max-width: min(48vw, 13rem);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: .8rem;
+    }
+
+    .app-header > div:first-of-type {
+        min-width: 0;
+        flex: 1 1 auto;
+        gap: .5rem;
+    }
+
+        .app-header > div:first-of-type > svg {
+            width: 1.4rem;
+            height: 1.4rem;
+            flex: 0 0 auto;
+        }
+
+    .app-header > div:last-child {
+        flex: 0 0 auto;
+        gap: .35rem;
+    }
+
+    .page-content {
+        padding: .875rem;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+    }
+
+    .sidebar-shell {
+        display: flex;
+        position: fixed;
+        z-index: 1001;
+        inset: 0 auto 0 0;
+        width: min(18rem, 86vw);
+        height: 100dvh;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        transform: translateX(-105%);
+        visibility: hidden;
+        transition: transform .22s ease, visibility .22s ease;
+        box-shadow: 1rem 0 2.5rem rgb(0 0 0 / .35);
+    }
+
+        .sidebar-shell.mobile-sidebar-open {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+    .mobile-sidebar-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: .9rem 1rem;
+        border-bottom: 1px solid var(--color-slate-800);
+        font-size: .875rem;
+        font-weight: 700;
+        color: var(--color-slate-200);
+    }
+
+        .mobile-sidebar-heading button {
+            width: 2rem;
+            height: 2rem;
+            border-radius: .5rem;
+            font-size: 1.5rem;
+            line-height: 1;
+            color: var(--color-slate-300);
+            cursor: pointer;
+        }
+
+    .mobile-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: rgb(2 6 23 / .72);
+        backdrop-filter: blur(2px);
+    }
+
+    /* Keep wide data tables readable without causing page-level horizontal overflow. */
+    .page-content table {
+        max-width: 100%;
+    }
+
+    .page-content .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .page-content input,
+    .page-content select,
+    .page-content textarea {
+        max-width: 100%;
+    }
+
+    .page-content button {
+        touch-action: manipulation;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-shell {
+        transition: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .page-content table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

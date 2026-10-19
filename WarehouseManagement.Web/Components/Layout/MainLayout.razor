@@ -3,19 +3,19 @@
 @inject NavigationManager NavigationManager
 
 
-<div class="flex flex-col h-screen w-screen bg-slate-950 font-sans antialiased overflow-hidden">
+<div class="app-shell flex flex-col h-screen w-screen bg-slate-950 font-sans antialiased overflow-hidden">
     <!-- Khung trên: Header độc lập -->
-    <Header />
+    <Header OnMenuClick="ToggleMobileMenu" />
 
     <!-- Khung dưới: Gồm Sidebar và vùng nội dung chính -->
     <div class="flex flex-1 overflow-hidden">
         <!-- Thanh Sidebar bên trái -->
-        <Sidebar />
+        <Sidebar IsOpen="_isMobileMenuOpen" OnClose="CloseMobileMenu" />
 
         <!-- Vùng nội dung nghiệp vụ bên phải -->
         <main class="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
             <!-- Vùng cuộn chứa nội dung trang -->
-            <div class="flex-1 overflow-y-auto p-6 scrollbar-thin">
+            <div class="page-content flex-1 overflow-y-auto p-6 scrollbar-thin">
                 @Body
             </div>
 
@@ -27,6 +27,10 @@
 
 @code {
     private bool _isInitialized = false;
+    private bool _isMobileMenuOpen = false;
+
+    private void ToggleMobileMenu() => _isMobileMenuOpen = !_isMobileMenuOpen;
+    private void CloseMobileMenu() => _isMobileMenuOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

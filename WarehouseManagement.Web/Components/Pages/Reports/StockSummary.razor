@@ -3,6 +3,8 @@
 @using WarehouseManagement.Web.Models
 @inject WarehouseManagement.Web.Services.WarehouseApiClient ApiClient
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+@inject NavigationManager NavigationManager
 
 <div class="space-y-6 animate-fade-in">
     <!-- Tiêu đề trang -->
@@ -198,15 +200,29 @@
 
     private void ExportToExcel()
     {
-        // Điều hướng trực tiếp sang endpoint xuất file Excel của máy chủ API theo đúng tài liệu thiết kế mục tiêu
-        string baseUrl = "http://localhost:5169/"; // Cổng chạy thực tế backend của bạn
-        string exportUrl = $"{baseUrl}api/reports/stock-summary/export?fromDate={_fromDate:yyyy-MM-dd}&toDate={_toDate:yyyy-MM-dd}";
-        
+        var baseUrl = Configuration["WarehouseApi:BaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(baseUrl) ||
+            !Uri.TryCreate(baseUrl, UriKind.Absolute, out var apiUri) ||
+            (apiUri.Scheme != Uri.UriSchemeHttp &&
+             apiUri.Scheme != Uri.UriSchemeHttps))
+        {
+            _errorMessage = "Địa chỉ API chưa được cấu hình hợp lệ.";
+            return;
+        }
+
+        baseUrl = apiUri.AbsoluteUri.TrimEnd('/') + "/";
+
+        var exportUrl =
+            $"{baseUrl}api/reports/stock-summary/export" +
+            $"?fromDate={_fromDate:yyyy-MM-dd}" +
+            $"&toDate={_toDate:yyyy-MM-dd}";
+
         if (!string.IsNullOrEmpty(_selectedWarehouseId))
         {
-            exportUrl += $"&warehouseId={_selectedWarehouseId}";
+            exportUrl += $"&warehouseId={Uri.EscapeDataString(_selectedWarehouseId)}";
         }
-        
-    NavigationManager.NavigateTo(exportUrl, forceLoad: true);
+
+        NavigationManager.NavigateTo(exportUrl, forceLoad: true);
     }
 }
